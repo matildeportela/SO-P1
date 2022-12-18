@@ -118,6 +118,8 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
             return -1; // no space in directory
         }
 
+        inode_inc_links(inum);  //criou hardlink por isso incrementa o count
+
         offset = 0;
     } else {
         return -1;
@@ -133,21 +135,56 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 }
 
 int tfs_sym_link(char const *target, char const *link_name) {
-    (void)target;
-    (void)link_name;
-    // ^ this is a trick to keep the compiler from complaining about unused
-    // variables. TODO: remove
+    ssize_t r;
+    //is target valid path
 
-    PANIC("TODO: tfs_sym_link");
+    //if target exists?
+
+    //if symlink already exits??
+
+    //open file (create / write)
+    int fh = tfs_open(link_name, TFS_O_CREAT | TFS_O_TRUNC);
+    if(fh < 0) {
+        return -1;
+    }
+
+    //write target path into file
+    r = tfs_write(fh, target, strlen(target));
+    if(r != strlen(target)) {
+        return -1;
+    }
+
+    //close
+    return tfs_close(fh);
 }
 
 int tfs_link(char const *target, char const *link_name) {
-    (void)target;
-    (void)link_name;
-    // ^ this is a trick to keep the compiler from complaining about unused
-    // variables. TODO: remove
+    //check if target exists
 
-    PANIC("TODO: tfs_link");
+    //check if linkname exists
+
+
+    // Checks if the target path name is valid
+    if (!valid_pathname(target)) {
+        return -1;
+    }
+
+    inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
+    ALWAYS_ASSERT(root_dir_inode != NULL, "tfs_link: root dir inode must exist");
+
+    int inum_target = tfs_lookup(target, root_dir_inode);
+    if(inum_target<0) {
+        return -1; //o target não existe
+    }
+
+    //add dir entry for harlink
+    if (add_dir_entry(root_dir_inode, link_name + 1, inum_target) == -1) {
+        return -1; // no space in directory
+    }
+
+    inode_inc_links(inum_target);
+
+    return 0;
 }
 
 int tfs_close(int fhandle) {
@@ -273,8 +310,9 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
     
 
     //* closing the files
-    fclose(fs);
-    tfs_close(fd);
-
+    if(fclose(fs) < 0 ||  tfs_close(fd) < 0) {
+        return -1;
+    }
+    
     return 0;
 }

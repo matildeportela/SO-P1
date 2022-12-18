@@ -205,6 +205,9 @@ int inode_create(inode_type i_type) {
     insert_delay(); // simulate storage access delay (to inode)
 
     inode->i_node_type = i_type;
+    
+    inode->hardlink_count = 0; //init hardlink_count
+
     switch (i_type) {
     case T_DIRECTORY: {
         // Initializes directory (filling its block with empty entries, labeled
@@ -279,6 +282,14 @@ inode_t *inode_get(int inumber) {
 
     insert_delay(); // simulate storage access delay to inode
     return &inode_table[inumber];
+}
+
+
+int inode_inc_links(int inumber) {
+    inode_t *inode = inode_get(inumber);
+    inode->hardlink_count ++;
+
+    return inode->hardlink_count;
 }
 
 /**
