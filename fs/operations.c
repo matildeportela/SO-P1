@@ -91,6 +91,31 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         ALWAYS_ASSERT(inode != NULL,
                       "tfs_open: directory files must have an inode");
 
+        if(inode->i_node_type == T_SYMLINK) {
+
+            //todo: how to init char* ?!?!?!
+            char* symlink_path = "                                                                       ";
+
+            //TODO passar para func à a parte tipo readSymLink
+            // Determine how many bytes to read
+            size_t to_read = inode->i_size;
+
+            if (to_read > 0) {
+                void *block = data_block_get(inode->i_data_block);
+                ALWAYS_ASSERT(block != NULL, "tfs_read: data block deleted mid-read");
+
+                // Perform the actual read
+                memcpy(symlink_path, block, to_read);
+
+            }
+
+            printf("%s", symlink_path);
+            exit(1);
+
+            return tfs_open(symlink_path, mode);
+
+        }
+
         // Truncate (if requested)
         if (mode & TFS_O_TRUNC) {
             if (inode->i_size > 0) {
@@ -136,11 +161,31 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 
 int tfs_sym_link(char const *target, char const *link_name) {
     ssize_t r;
+
+    printf("***************");
+
+
     //is target valid path
+    if (!valid_pathname(target)) {
+        return -1;
+    }
+
+    inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
+    ALWAYS_ASSERT(root_dir_inode != NULL, "tfs_link: root dir inode must exist");
+
 
     //if target exists?
+    int inum_target = tfs_lookup(target, root_dir_inode);
+    if(inum_target<0) {
+        return -1; //o target não existe
+    }
+
 
     //if symlink already exits??
+    int inum_symlink = tfs_lookup(link_name, root_dir_inode);
+    if(inum_symlink>=0) {
+        return -1; //o symlink já existe
+    }
 
     //open file (create / write)
     int fh = tfs_open(link_name, TFS_O_CREAT | TFS_O_TRUNC);
@@ -155,7 +200,18 @@ int tfs_sym_link(char const *target, char const *link_name) {
     }
 
     //close
-    return tfs_close(fh);
+    if(tfs_close(fh) < 0) {
+        return -1;
+    }
+
+
+    int inum = tfs_lookup(link_name, root_dir_inode);
+    inode_t *inode = inode_get(inum);
+    ALWAYS_ASSERT(inode != NULL,
+                  "tfs_sym_link: symlinks must have an inode");
+    inode->i_node_type = T_SYMLINK;
+
+    return 0;
 }
 
 int tfs_link(char const *target, char const *link_name) {
