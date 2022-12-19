@@ -159,10 +159,9 @@ int tfs_sym_link(char const *target, char const *link_name) {
 }
 
 int tfs_link(char const *target, char const *link_name) {
-    //check if target exists
 
     //check if linkname exists
-
+    //todo??
 
     // Checks if the target path name is valid
     if (!valid_pathname(target)) {
@@ -271,11 +270,38 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 }
 
 int tfs_unlink(char const *target) {
-    (void)target;
-    // ^ this is a trick to keep the compiler from complaining about unused
-    // variables. TODO: remove
 
-    PANIC("TODO: tfs_unlink");
+    //verificar target exist
+    // Checks if the target path name is valid
+    if (!valid_pathname(target)) {
+        return -1;
+    }
+
+    inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
+    ALWAYS_ASSERT(root_dir_inode != NULL, "tfs_link: root dir inode must exist");
+
+    int inum_target = tfs_lookup(target, root_dir_inode);
+    if(inum_target<0) {
+        return -1; //o target não existe
+    }
+
+
+    //remover entrada do dir
+    if (clear_dir_entry(root_dir_inode, target+1) == -1) {
+        return -1; // no space in directory
+    }
+
+    //decrementar o hardlink count no inode
+    int hardlinks = inode_dec_links(inum_target);
+
+
+    //se for 0, remove o inode e o conteudo
+    if(hardlinks <= 0) {
+        inode_delete(inum_target);
+    }
+
+    return 0;
+
 }
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {

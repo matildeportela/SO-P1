@@ -292,6 +292,13 @@ int inode_inc_links(int inumber) {
     return inode->hardlink_count;
 }
 
+int inode_dec_links(int inumber) {
+    inode_t *inode = inode_get(inumber);
+    inode->hardlink_count --;
+
+    return inode->hardlink_count;
+}
+
 /**
  * Clear the directory entry associated with a sub file.
  *
