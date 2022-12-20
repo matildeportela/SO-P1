@@ -197,6 +197,7 @@ static int inode_alloc(void) {
  */
 int inode_create(inode_type i_type) {
     int inumber = inode_alloc();
+    
     if (inumber == -1) {
         return -1; // no free slots in inode table
     }
@@ -225,6 +226,7 @@ int inode_create(inode_type i_type) {
 
         inode_table[inumber].i_size = BLOCK_SIZE;
         inode_table[inumber].i_data_block = b;
+        inode_table[inumber].hardlink_count = 1;
 
         dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
         ALWAYS_ASSERT(dir_entry != NULL,
@@ -239,7 +241,7 @@ int inode_create(inode_type i_type) {
         // In case of a new file, simply sets its size to 0
         inode_table[inumber].i_size = 0;
         inode_table[inumber].i_data_block = -1;
-
+        
         break;
 
     default:
@@ -281,7 +283,7 @@ void inode_delete(int inumber) {
  * Returns pointer to inode.
  */
 inode_t *inode_get(int inumber) {
-    ALWAYS_ASSERT(valid_inumber(inumber), "inode_get: invalid inumber");
+    
 
     insert_delay(); // simulate storage access delay to inode
     return &inode_table[inumber];
@@ -290,14 +292,14 @@ inode_t *inode_get(int inumber) {
 
 int inode_inc_links(int inumber) {
     inode_t *inode = inode_get(inumber);
-    inode->hardlink_count++;
+    inode->hardlink_count ++;
 
     return inode->hardlink_count;
 }
 
 int inode_dec_links(int inumber) {
     inode_t *inode = inode_get(inumber);
-    inode->hardlink_count--;
+    inode->hardlink_count --;
 
     return inode->hardlink_count;
 }

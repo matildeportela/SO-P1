@@ -30,8 +30,6 @@ typedef struct {
     int hardlink_count;
     char path[MAX_FILE_NAME];
 
-
-
     // in a more complete FS, more fields could exist here
 } inode_t;
 

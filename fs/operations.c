@@ -84,31 +84,17 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
                   "tfs_open: root dir inode must exist");
     int inum = tfs_lookup(name, root_dir_inode);
     size_t offset;
+    if(inode_get(inum)->i_node_type == T_SYMLINK){
+        return tfs_open(inode_get(inum)-> path, mode);
 
-    if (inum >= 0) {
+    }
+
+    else if (inum >= 0) {
         // The file already exists
         inode_t *inode = inode_get(inum);
         ALWAYS_ASSERT(inode != NULL,
                       "tfs_open: directory files must have an inode");
 
-        if(inode->i_node_type == T_SYMLINK) {
-
-            //TODO passar para func à a parte tipo readSymLink
-            // Determine how many bytes to read
-            size_t to_read = inode->i_size;
-
-            if (to_read > 0) {
-                void *block = data_block_get(inode->i_data_block);
-                ALWAYS_ASSERT(block != NULL, "tfs_read: data block deleted mid-read");
-
-                // Perform the actual read
-                memcpy(inode->path, block, to_read);
-
-            }
-
-            return tfs_open(inode->path, mode);
-
-        }
 
         // Truncate (if requested)
         if (mode & TFS_O_TRUNC) {
@@ -154,11 +140,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 }
 
 int tfs_sym_link(char const *target, char const *link_name) {
-    ssize_t r;
-
-    printf("***************");
-
-
+    
     //is target valid path
     if (!valid_pathname(target)) {
         return -1;
@@ -166,6 +148,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
     ALWAYS_ASSERT(root_dir_inode != NULL, "tfs_link: root dir inode must exist");
+    
 
 
     //if target exists?
@@ -176,13 +159,13 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
 
     //if symlink already exits??
-    int inum_symlink = tfs_lookup(link_name, root_dir_inode);
-    if(inum_symlink>=0) {
-        return -1; //o symlink já existe
-    }
+    // //int inum_symlink = tfs_lookup(link_name, root_dir_inode);
+    // if(inum_symlink>=0) {
+    //     return -1; //o symlink já existe
+    // }
 
     //open file (create / write)
-    int fh = tfs_open(link_name, TFS_O_CREAT | TFS_O_TRUNC);
+    /*int fh = tfs_open(link_name, TFS_O_CREAT | TFS_O_TRUNC);
     if(fh < 0) {
         return -1;
     }
@@ -203,19 +186,19 @@ int tfs_sym_link(char const *target, char const *link_name) {
     inode_t *inode = inode_get(inum);
     ALWAYS_ASSERT(inode != NULL,
                   "tfs_sym_link: symlinks must have an inode");
-    inode->i_node_type = T_SYMLINK;
-
+    inode->i_node_type = T_SYMLINK;*/
     int new_inode = inode_create(T_SYMLINK);
     inode_t* real_inode = inode_get(new_inode);
 
     if(new_inode < 0){
         return -1;
     }
+    strcpy(real_inode->path, target);
 
     if(add_dir_entry(root_dir_inode,link_name + 1, new_inode)<0){
         return -1;
     }
-    strcpy(real_inode->path, target);
+    // strcpy(real_inode->path, target);
 
 
 
@@ -231,6 +214,7 @@ int tfs_link(char const *target, char const *link_name) {
     if (!valid_pathname(target)) {
         return -1;
     }
+    
 
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
     ALWAYS_ASSERT(root_dir_inode != NULL, "tfs_link: root dir inode must exist");
@@ -239,8 +223,6 @@ int tfs_link(char const *target, char const *link_name) {
     if(inum_target<0) {
         return -1; //o target não existe
     }
-
-    //checks if its not symlink
     inode_t* inode_target = inode_get(inum_target);
 
     if(inode_target->i_node_type == T_SYMLINK){
@@ -253,6 +235,7 @@ int tfs_link(char const *target, char const *link_name) {
     }
 
     inode_inc_links(inum_target);
+    
 
     return 0;
 }
@@ -356,13 +339,6 @@ int tfs_unlink(char const *target) {
         return -1; //o target não existe
     }
 
-
-    //remover entrada do dir
-    if (clear_dir_entry(root_dir_inode, target+1) == -1) {
-        return -1; // no space in directory
-    }
-
-
     inode_t* inode_target = inode_get(inum_target);
 
     if(inode_target->i_node_type == T_SYMLINK){
@@ -370,14 +346,18 @@ int tfs_unlink(char const *target) {
         inode_delete(inum_target);
         return 0;
     }
-
-
+    
     //decrementar o hardlink count no inode
     int hardlinks = inode_dec_links(inum_target);
 
+    //remover entrada do dir
+    if (clear_dir_entry(root_dir_inode, target+1) == -1) {
+        return -1; // no space in directory
+    }
+
 
     //se for 0, remove o inode e o conteudo
-    if(hardlinks <= 0) {
+    if(hardlinks == 0) {
         inode_delete(inum_target);
     }
 
