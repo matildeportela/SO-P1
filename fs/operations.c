@@ -93,9 +93,6 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 
         if(inode->i_node_type == T_SYMLINK) {
 
-            //todo: how to init char* ?!?!?!
-            char* symlink_path = "                                                                       ";
-
             //TODO passar para func à a parte tipo readSymLink
             // Determine how many bytes to read
             size_t to_read = inode->i_size;
@@ -105,14 +102,11 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
                 ALWAYS_ASSERT(block != NULL, "tfs_read: data block deleted mid-read");
 
                 // Perform the actual read
-                memcpy(symlink_path, block, to_read);
+                memcpy(inode->path, block, to_read);
 
             }
-
-            printf("%s", symlink_path);
-            exit(1);
-
-            return tfs_open(symlink_path, mode);
+            
+            return tfs_open(inode->path, mode);
 
         }
 
@@ -211,6 +205,20 @@ int tfs_sym_link(char const *target, char const *link_name) {
                   "tfs_sym_link: symlinks must have an inode");
     inode->i_node_type = T_SYMLINK;
 
+    int new_inode = inode_create(T_SYMLINK);
+    inode_t* real_inode = inode_get(new_inode);
+
+    if(new_inode < 0){
+        return -1;
+    }
+
+    if(add_dir_entry(root_dir_inode,link_name + 1, new_inode)<0){
+        return -1;
+    }
+    strcpy(real_inode->path, target);
+
+
+
     return 0;
 }
 
@@ -230,6 +238,13 @@ int tfs_link(char const *target, char const *link_name) {
     int inum_target = tfs_lookup(target, root_dir_inode);
     if(inum_target<0) {
         return -1; //o target não existe
+    }
+
+    //checks if its not symlink
+    inode_t* inode_target = inode_get(inum_target);
+
+    if(inode_target->i_node_type == T_SYMLINK){
+        return -1;
     }
 
     //add dir entry for harlink
@@ -346,6 +361,16 @@ int tfs_unlink(char const *target) {
     if (clear_dir_entry(root_dir_inode, target+1) == -1) {
         return -1; // no space in directory
     }
+
+
+    inode_t* inode_target = inode_get(inum_target);
+
+    if(inode_target->i_node_type == T_SYMLINK){
+        clear_dir_entry(root_dir_inode, target +1);
+        inode_delete(inum_target);
+        return 0;
+    }
+
 
     //decrementar o hardlink count no inode
     int hardlinks = inode_dec_links(inum_target);
