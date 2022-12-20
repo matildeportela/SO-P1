@@ -239,6 +239,7 @@ int inode_create(inode_type i_type) {
         // In case of a new file, simply sets its size to 0
         inode_table[inumber].i_size = 0;
         inode_table[inumber].i_data_block = -1;
+
         break;
 
     default:
@@ -289,14 +290,14 @@ inode_t *inode_get(int inumber) {
 
 int inode_inc_links(int inumber) {
     inode_t *inode = inode_get(inumber);
-    inode->hardlink_count ++;
+    inode->hardlink_count++;
 
     return inode->hardlink_count;
 }
 
 int inode_dec_links(int inumber) {
     inode_t *inode = inode_get(inumber);
-    inode->hardlink_count --;
+    inode->hardlink_count--;
 
     return inode->hardlink_count;
 }

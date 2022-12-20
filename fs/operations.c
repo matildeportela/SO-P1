@@ -105,7 +105,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
                 memcpy(inode->path, block, to_read);
 
             }
-            
+
             return tfs_open(inode->path, mode);
 
         }
