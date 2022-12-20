@@ -141,10 +141,6 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 
 int tfs_sym_link(char const *target, char const *link_name) {
     
-
-    
-
-
     //is target valid path
     if (!valid_pathname(target)) {
         return -1;
@@ -152,6 +148,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
     ALWAYS_ASSERT(root_dir_inode != NULL, "tfs_link: root dir inode must exist");
+    
 
 
     //if target exists?
@@ -162,10 +159,10 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
 
     //if symlink already exits??
-    int inum_symlink = tfs_lookup(link_name, root_dir_inode);
-    if(inum_symlink>=0) {
-        return -1; //o symlink já existe
-    }
+    // //int inum_symlink = tfs_lookup(link_name, root_dir_inode);
+    // if(inum_symlink>=0) {
+    //     return -1; //o symlink já existe
+    // }
 
     //open file (create / write)
     /*int fh = tfs_open(link_name, TFS_O_CREAT | TFS_O_TRUNC);
@@ -196,11 +193,12 @@ int tfs_sym_link(char const *target, char const *link_name) {
     if(new_inode < 0){
         return -1;
     }
+    strcpy(real_inode->path, target);
 
     if(add_dir_entry(root_dir_inode,link_name + 1, new_inode)<0){
         return -1;
     }
-    strcpy(real_inode->path, target);
+    // strcpy(real_inode->path, target);
 
 
 
